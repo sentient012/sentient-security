@@ -1,0 +1,25 @@
+name: release
+on:
+  push:
+    tags: ["v*.*.*"]
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    environment: npm-publish   # protected environment: require maintainer approval
+    permissions:
+      contents: read
+      id-token: write          # npm trusted publishing (OIDC) + provenance
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with: { node-version: "24.11.1", registry-url: "https://registry.npmjs.org" }
+      - run: npm install -g npm@11.6.2
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run verify:pack
+      - name: Tag matches package version
+        run: test "v$(node -p 'require(\"./package.json\").version')" = "${GITHUB_REF_NAME}"
+      - run: npm publish --provenance --access public

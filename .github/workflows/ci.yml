@@ -1,0 +1,35 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        node: ["20.19.5", "22.21.1", "24.11.1"]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with: { node-version: "${{ matrix.node }}" }
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx tsc -p tsconfig.experimental.json && node --test test/experimental-identity.test.mjs
+      - run: npm run verify:pack
+      - run: npm run test:packed
+      - run: npm audit --omit=dev --audit-level=low
+      - run: node tools/scan-secrets.mjs
+  codeql:
+    runs-on: ubuntu-24.04
+    permissions: { contents: read, security-events: write }
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: { persist-credentials: false }
+      - uses: github/codeql-action/init@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        with: { languages: javascript-typescript }
+      - uses: github/codeql-action/analyze@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
