@@ -4,31 +4,99 @@
   "description": "Sentient's cryptographic protocol implementations (hybrid X25519 + ML-KEM-768 messaging, business and group protocols, authenticated post-quantum call handshake, key recovery formats). Not independently audited.",
   "license": "Apache-2.0",
   "author": "Sentient",
-  "repository": { "type": "git", "url": "git+https://github.com/sentient012/sentient-security.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sentient012/sentient-security.git"
+  },
   "homepage": "https://github.com/sentient012/sentient-security#readme",
-  "bugs": { "url": "https://github.com/sentient012/sentient-security/security/advisories/new" },
+  "bugs": {
+    "url": "https://github.com/sentient012/sentient-security/security/advisories/new"
+  },
   "type": "module",
   "sideEffects": false,
-  "engines": { "node": ">=20.19" },
-  "files": ["dist", "LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", "README.md", "SECURITY.md", "THREAT_MODEL.md", "PROTOCOLS.md", "CHANGELOG.md"],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/experimental",
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.md",
+    "README.md",
+    "SECURITY.md",
+    "THREAT_MODEL.md",
+    "PROTOCOLS.md",
+    "CHANGELOG.md",
+    "RESEARCHERS.md"
+  ],
   "exports": {
     "./package.json": "./package.json",
-    "./encoding": { "types": "./dist/encoding/index.d.ts", "default": "./dist/encoding/index.js" },
-    "./kem": { "types": "./dist/kem/index.d.ts", "default": "./dist/kem/index.js" },
-    "./sig": { "types": "./dist/sig/index.d.ts", "default": "./dist/sig/index.js" },
-    "./random": { "types": "./dist/random/index.d.ts", "default": "./dist/random/index.js" },
-    "./hybrid-v1": { "types": "./dist/hybrid-v1/index.d.ts", "default": "./dist/hybrid-v1/index.js" },
-    "./business": { "types": "./dist/business/core.d.ts", "default": "./dist/business/core.js" },
-    "./business/conversation-keys": { "types": "./dist/business/conversation-keys.d.ts", "default": "./dist/business/conversation-keys.js" },
-    "./group": { "types": "./dist/group/core.d.ts", "default": "./dist/group/core.js" },
-    "./group/keys": { "types": "./dist/group/keys.d.ts", "default": "./dist/group/keys.js" },
-    "./call": { "types": "./dist/call/handshake.d.ts", "default": "./dist/call/handshake.js" },
-    "./call/frame-web": { "types": "./dist/call/frame-web.d.ts", "default": "./dist/call/frame-web.js" },
-    "./recovery/keyring": { "types": "./dist/recovery/keyring.d.ts", "default": "./dist/recovery/keyring.js" },
-    "./recovery": { "types": "./dist/recovery/recovery.d.ts", "default": "./dist/recovery/recovery.js" },
-    "./recovery/passkey": { "types": "./dist/recovery/passkey.d.ts", "default": "./dist/recovery/passkey.js" },
-    "./notification-preview": { "types": "./dist/notification-preview/index.d.ts", "default": "./dist/notification-preview/index.js" },
-    "./testing": { "types": "./dist/testing/index.d.ts", "default": "./dist/testing/index.js" }
+    "./encoding": {
+      "types": "./dist/encoding/index.d.ts",
+      "default": "./dist/encoding/index.js"
+    },
+    "./kem": {
+      "types": "./dist/kem/index.d.ts",
+      "default": "./dist/kem/index.js"
+    },
+    "./sig": {
+      "types": "./dist/sig/index.d.ts",
+      "default": "./dist/sig/index.js"
+    },
+    "./random": {
+      "types": "./dist/random/index.d.ts",
+      "default": "./dist/random/index.js"
+    },
+    "./hybrid-v1": {
+      "types": "./dist/hybrid-v1/index.d.ts",
+      "default": "./dist/hybrid-v1/index.js"
+    },
+    "./business": {
+      "types": "./dist/business/core.d.ts",
+      "default": "./dist/business/core.js"
+    },
+    "./business/conversation-keys": {
+      "types": "./dist/business/conversation-keys.d.ts",
+      "default": "./dist/business/conversation-keys.js"
+    },
+    "./group": {
+      "types": "./dist/group/core.d.ts",
+      "default": "./dist/group/core.js"
+    },
+    "./group/keys": {
+      "types": "./dist/group/keys.d.ts",
+      "default": "./dist/group/keys.js"
+    },
+    "./call": {
+      "types": "./dist/call/handshake.d.ts",
+      "default": "./dist/call/handshake.js"
+    },
+    "./call/frame-web": {
+      "types": "./dist/call/frame-web.d.ts",
+      "default": "./dist/call/frame-web.js"
+    },
+    "./recovery/keyring": {
+      "types": "./dist/recovery/keyring.d.ts",
+      "default": "./dist/recovery/keyring.js"
+    },
+    "./recovery": {
+      "types": "./dist/recovery/recovery.d.ts",
+      "default": "./dist/recovery/recovery.js"
+    },
+    "./recovery/passkey": {
+      "types": "./dist/recovery/passkey.d.ts",
+      "default": "./dist/recovery/passkey.js"
+    },
+    "./notification-preview": {
+      "types": "./dist/notification-preview/index.d.ts",
+      "default": "./dist/notification-preview/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
+    }
   },
   "scripts": {
     "build": "node tools/clean.mjs && tsc -p tsconfig.build.json",
