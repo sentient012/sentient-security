@@ -21,5 +21,7 @@ jobs:
       - run: npm test
       - run: npm run verify:pack
       - name: Tag matches package version
-        run: test "v$(node -p 'require(\"./package.json\").version')" = "${GITHUB_REF_NAME}"
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          test "v${version}" = "${GITHUB_REF_NAME}"
       - run: npm publish --provenance --access public
