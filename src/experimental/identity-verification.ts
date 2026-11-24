@@ -130,3 +130,48 @@ export function checkKeyPin(pinned: PinState | null, current: AccountKeys): PinR
 export function markVerified(pin: PinState): PinState {
   return { ...pin, verified: true };
 }
+
+// ---------------------------------------------------------------------------
+// Binding identity verification to Sentient's QR pairing.
+//
+// Scanning someone's pairing QR today proves only that you met a live session
+// of that ACCOUNT; it says nothing about the keys the server will later hand
+// out. If the QR also carries a commitment to the displaying account's
+// identity keys, the scanning device can compare it with the keys it receives
+// and pin them as VERIFIED. That turns "we met" into "these are the keys of the
+// person I met". A short PIN cannot carry such a commitment (too few bits), so
+// PIN pairing remains unverified until the users compare codes.
+// ---------------------------------------------------------------------------
+import { bytesToHex as toHexBytes } from "@noble/hashes/utils.js";
+
+export const QR_VERIFICATION_PREFIX = "sv0";
+
+/** Text to embed in the pairing QR next to the pairing token: "sv0.<userId>.<64 hex>". */
+export function qrVerificationPayload(account: AccountKeys, iterations = FINGERPRINT_ITERATIONS): string {
+  return `${QR_VERIFICATION_PREFIX}.${account.userId}.${toHexBytes(accountDigest(account, iterations))}`;
+}
+
+export type QrVerificationResult = { status: "verified" } | { status: "mismatch" } | { status: "malformed" } | { status: "wrong_account" };
+
+/** Compare a scanned payload with the keys the directory returned for that account. */
+export function verifyQrPayload(payload: string, received: AccountKeys, iterations = FINGERPRINT_ITERATIONS): QrVerificationResult {
+  const parts = String(payload || "").split(".");
+  if (parts.length !== 3 || parts[0] !== QR_VERIFICATION_PREFIX || !/^[0-9a-f]{64}$/.test(parts[2])) return { status: "malformed" };
+  if (parts[1] !== received.userId) return { status: "wrong_account" };
+  const expected = toHexBytes(accountDigest(received, iterations));
+  let diff = 0;
+  for (let i = 0; i < 64; i++) diff |= expected.charCodeAt(i) ^ parts[2].charCodeAt(i);
+  return diff === 0 ? { status: "verified" } : { status: "mismatch" };
+}
+
+/** Identity keys of a device list (device-list.ts) in the form accountDigest expects. */
+export function accountKeysFromDevices(userId: string, devices: { ik: string; ed25519_public_key: string; ml_dsa_public_key: string; deviceId: string }[]): AccountKeys {
+  return {
+    userId,
+    keys: devices.flatMap((d) => [
+      { kind: `x25519-${d.deviceId}`, publicKey: d.ik },
+      { kind: `ed25519-${d.deviceId}`, publicKey: d.ed25519_public_key },
+      { kind: `mldsa65-${d.deviceId}`, publicKey: d.ml_dsa_public_key },
+    ]),
+  };
+}

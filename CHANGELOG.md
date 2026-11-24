@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased (experimental, not in the package)
+
+- src/experimental: sentient-pqxdh-v0, sentient-tr-v0 (Double Ratchet + sparse ML-KEM epoch ratchet), signed device lists, group sender keys, protocol negotiation, QR-bound identity verification; 22 tests; docs/experimental/PROTOCOLS-EXPERIMENTAL.md.
+
 ## 0.1.0 (unreleased)
 
 First extraction of Sentient's deployed protocol code. Wire formats unchanged and verified byte for byte against vectors captured from the deployed source.

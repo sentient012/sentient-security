@@ -7,28 +7,25 @@ explicitly authorized deployment. A new protocol will always get a new protocol
 identifier, explicit version negotiation and downgrade protection. It will never
 silently replace `sentient-hybrid-v1`.
 
-| # | Capability | Gap today | Basis we intend to build on | Status |
-|---|---|---|---|---|
-| 1 | Independent identity-key verification | Keys come from the server directory unverified | Published "safety number" designs (iterated hash of identity keys, out-of-band comparison or QR) | **Experimental code** (`identity-verification.ts`): fingerprint and comparison code, 6 tests. Not reviewed, not wired into any client. |
-| 2 | Key-change detection | No pinning of a contact's device set | Trust-on-first-use pins with explicit change events | **Experimental code** (same module): pure state machine, tests. |
-| 3 | Cryptographic sender authentication (1:1) | hybrid-v1 has no sender signature | Reuse the deployed hybrid Ed25519 + ML-DSA-65 framing (already used by business and group) to sign hybrid-v1 payloads under a **new** protocol id | Design only. Needs a key-registration path for signing keys per device, a negotiation rule, and old-client compatibility. |
-| 4 | Authenticated initial key agreement | Ephemeral-static KEM only | PQXDH (Signal, 2023) as a reference design; formal analyses of PQXDH published 2023-2024 | Research. Not implemented. |
-| 5 | Forward secrecy and post-compromise security (classical) | Static recipient keys | Double Ratchet specification (Signal) | Research. Not implemented. |
-| 6 | Post-quantum ratcheting | None | Sparse Post-Quantum Ratchet (SPQR) and the "Triple Ratchet" composition published by Signal in 2025, and the academic work it builds on | Research. Not implemented. |
-| 7 | Secure multi-device sessions | Fan-out to the server-listed devices | Per-device sessions (Sesame-style session management) combined with 1 and 2 | Research. |
-| 8 | Out-of-order and offline handling | N/A (no ratchet state) | Skipped-message-key handling with bounds, as in the Double Ratchet spec | Depends on 5. |
-| 9 | Replay and downgrade protection | Server-assigned ordering; version string only | Signed version advertisement per device; refuse lower versions once a peer has advertised a higher one | Design only. |
-| 10 | Session lifecycle | N/A | Explicit session reset and key-deletion events | Depends on 5 and 6. |
+| # | Capability | Status (see docs/experimental/PROTOCOLS-EXPERIMENTAL.md) |
+|---|---|---|
+| 1 | Independent identity-key verification | **Experimental code + tests**: comparison codes, QR-bound verification |
+| 2 | Key-change detection | **Experimental code + tests**: pins, device-list classification |
+| 3 | Cryptographic sender authentication (1:1) | **Experimental code + tests**: pqxdh (identity DH + hybrid-signed initial message) and the ratchet AEAD |
+| 4 | Authenticated initial key agreement | **Experimental code + tests**: sentient-pqxdh-v0 (PQXDH structure, hybrid-signed prekeys) |
+| 5 | Forward secrecy and post-compromise security (classical) | **Experimental code + tests**: Double Ratchet per specification |
+| 6 | Post-quantum ratcheting | **Experimental code + tests**: sparse ML-KEM epoch ratchet + KDF_HYBRID (SPQR-inspired, not SPQR-compatible) |
+| 7 | Secure multi-device sessions | **Experimental code + tests**: signed device lists. Per-device session fan-out is left to the app |
+| 8 | Out-of-order and offline handling | **Experimental code + tests**: bounded skipped keys, randomized reordering tests |
+| 9 | Replay and downgrade protection | **Experimental code + tests**: signed capabilities, upgrade pinning, replay tests |
+| 10 | Session lifecycle | **Partial**: state serialization and mutex. No reset or recovery UX |
+| 11 | Group FS within an epoch | **Experimental code + tests**: per-sender chains. MLS not adopted |
 
-## Why items 4-10 are not implemented in this release
+None of this is reviewed, formally verified or deployed.
 
-A ratcheting messaging protocol is a large state machine whose security
-depends on details: header encryption, skipped-key bounds, state rollback on
-failure, multi-device fan-out and negotiation. Code written quickly, and
-validated only by its author's own tests, is not a responsible basis for
-claims of forward secrecy or post-compromise security. We will build these
-components separately and versioned, with state-machine tests, fuzzing and
-test vectors, then seek independent review before any deployment.
+## Why these are experimental, not stable
+
+The implementations exist and are tested, but tests written by the implementer are not evidence of security. Independent review, a formal model and real-device measurements are required before any production use (docs/experimental/PROTOCOLS-EXPERIMENTAL.md section 6).
 
 ## Licensing constraints
 
