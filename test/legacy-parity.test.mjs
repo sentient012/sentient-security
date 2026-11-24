@@ -105,3 +105,8 @@ test("library decrypts every legacy hybrid-v1 vector without the deterministic s
     }
   }
 });
+
+test("call handshake: the Business Terminal's former implementation produced the same bytes, so one library class replaces both", async () => {
+  assert.deepEqual(L.callTerminal, L.call);
+  assert.deepEqual(json(await run("call", (rand) => S.callScenario(impl, rand))), L.callTerminal);
+});

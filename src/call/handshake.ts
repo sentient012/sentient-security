@@ -443,14 +443,10 @@ function stripEnvelope<T extends Record<string, unknown>>(
   return fields as T;
 }
 
-function nowIso() {
-  return new Date().toISOString();
-}
-
-function isFresh(createdAt: string): boolean {
+function isFreshAt(createdAt: string, nowMs: number): boolean {
   const t = Date.parse(createdAt);
   if (!Number.isFinite(t)) return false;
-  return Math.abs(Date.now() - t) <= HANDSHAKE_FRESHNESS_WINDOW_MS;
+  return Math.abs(nowMs - t) <= HANDSHAKE_FRESHNESS_WINDOW_MS;
 }
 
 // ============================================================================
@@ -504,6 +500,17 @@ export class CallPqcHandshake {
     getPeerBundle: (deviceKeyId: string) => Promise<DeviceCallSigningKeyBundle | null>;
     localDtlsFingerprints: () => string[];
     callbacks?: CallPqcHandshakeCallbacks;
+    /**
+     * Optional local binding check on the peer's directory row (for example
+     * `bundle.user_id === expectedPeerUserId`). A row that fails it ends the
+     * handshake as verification_failed ("peer_identity_mismatch"). Default:
+     * accept any row the directory returned (deployed phone behaviour).
+     */
+    expectPeer?: (bundle: DeviceCallSigningKeyBundle) => boolean;
+    /** Randomness source (default: CSPRNG). Tests inject a deterministic one. */
+    random?: (length: number) => Uint8Array;
+    /** Clock in milliseconds (default: Date.now). */
+    now?: () => number;
   }) {
     this.role = params.role;
     this.callId = params.callId;
@@ -514,10 +521,36 @@ export class CallPqcHandshake {
     this.getPeerBundle = params.getPeerBundle;
     this.localDtlsFingerprints = params.localDtlsFingerprints;
     this.callbacks = params.callbacks ?? {};
+    this.expectPeer = params.expectPeer ?? (() => true);
+    this.random = params.random ?? randomBytes;
+    this.now = params.now ?? (() => Date.now());
+  }
+
+  private readonly expectPeer: (bundle: DeviceCallSigningKeyBundle) => boolean;
+  private readonly random: (length: number) => Uint8Array;
+  private readonly now: () => number;
+  /** Assignable listener (Business Terminal style); called in addition to callbacks.onSecurityState. */
+  onSecurityState: ((state: CallPqcSecurityState) => void) | null = null;
+
+  private nowIso() {
+    return new Date(this.now()).toISOString();
+  }
+
+  private isFresh(createdAt: string) {
+    return isFreshAt(createdAt, this.now());
+  }
+
+  /** Directory lookup + optional local binding check. */
+  private async peer(deviceKeyId: string): Promise<{ bundle: DeviceCallSigningKeyBundle | null; reason: string | null }> {
+    const bundle = await this.getPeerBundle(deviceKeyId).catch(() => null);
+    if (!bundle) return { bundle: null, reason: "peer_no_signing_bundle" };
+    if (!this.expectPeer(bundle)) return { bundle: null, reason: "peer_identity_mismatch" };
+    return { bundle, reason: null };
   }
 
   private emit() {
     this.callbacks.onSecurityState?.(this.state);
+    this.onSecurityState?.(this.state);
   }
 
   private fail(reason: string) {
@@ -541,8 +574,8 @@ export class CallPqcHandshake {
   /** Caller only: builds and signs the initial "hello" message. */
   async buildHello(): Promise<CallPqcHandshakeMessage<HelloFields>> {
     if (this.role !== "caller") throw new Error("buildHello is caller-only");
-    this.nonce = bytesToBase64(randomBytes(16));
-    this.ephemeralX25519Private = randomBytes(32);
+    this.nonce = bytesToBase64(this.random(16));
+    this.ephemeralX25519Private = this.random(32);
     this.ephemeralX25519Public = x25519.getPublicKey(this.ephemeralX25519Private);
 
     const fields: HelloFields = {
@@ -558,7 +591,7 @@ export class CallPqcHandshake {
       ephemeralX25519PublicKey: bytesToBase64(this.ephemeralX25519Public),
       dtlsFingerprints: this.localDtlsFingerprints(),
       algorithm: FRAME_ALGORITHM_LABEL,
-      createdAt: nowIso(),
+      createdAt: this.nowIso(),
     };
     this.helloFields = fields;
     const signature = signTranscriptHybrid(signedTranscriptOf(fields), this.localIdentity);
@@ -574,14 +607,15 @@ export class CallPqcHandshake {
       this.fail("hello_field_mismatch");
       return null;
     }
-    if (!isFresh(message.createdAt)) {
+    if (!this.isFresh(message.createdAt)) {
       this.fail("hello_stale");
       return null;
     }
 
-    const peerBundle = await this.getPeerBundle(message.callerDeviceKeyId).catch(() => null);
+    const { bundle: peerBundle, reason: peerReason } = await this.peer(message.callerDeviceKeyId);
     if (!peerBundle) {
-      this.unsupported("peer_no_signing_bundle");
+      if (peerReason === "peer_identity_mismatch") this.fail(peerReason);
+      else this.unsupported("peer_no_signing_bundle");
       return null;
     }
     const helloFieldsOnly = stripEnvelope(message);
@@ -598,9 +632,9 @@ export class CallPqcHandshake {
     this.peerBundle = peerBundle;
     this.helloFields = helloFieldsOnly;
     this.nonce = message.nonce;
-    this.ephemeralX25519Private = randomBytes(32);
+    this.ephemeralX25519Private = this.random(32);
     this.ephemeralX25519Public = x25519.getPublicKey(this.ephemeralX25519Private);
-    this.mlKemEphemeral = ml_kem768.keygen();
+    this.mlKemEphemeral = ml_kem768.keygen(this.random(64));
 
     const fields: AcceptFields = {
       step: "accept",
@@ -618,7 +652,7 @@ export class CallPqcHandshake {
       peerEphemeralX25519PublicKey: message.ephemeralX25519PublicKey,
       peerDtlsFingerprints: message.dtlsFingerprints,
       algorithm: FRAME_ALGORITHM_LABEL,
-      createdAt: nowIso(),
+      createdAt: this.nowIso(),
     };
     this.acceptFields = fields;
     const signature = signTranscriptHybrid(signedTranscriptOf(fields), this.localIdentity);
@@ -651,14 +685,15 @@ export class CallPqcHandshake {
       this.fail("accept_field_mismatch");
       return null;
     }
-    if (!isFresh(message.createdAt)) {
+    if (!this.isFresh(message.createdAt)) {
       this.fail("accept_stale");
       return null;
     }
 
-    const peerBundle = await this.getPeerBundle(message.calleeDeviceKeyId).catch(() => null);
+    const { bundle: peerBundle, reason: peerReason } = await this.peer(message.calleeDeviceKeyId);
     if (!peerBundle) {
-      this.unsupported("peer_no_signing_bundle");
+      if (peerReason === "peer_identity_mismatch") this.fail(peerReason);
+      else this.unsupported("peer_no_signing_bundle");
       return null;
     }
     const acceptFieldsOnly = stripEnvelope(message);
@@ -681,7 +716,7 @@ export class CallPqcHandshake {
       calleeEphemeralX25519Public
     );
     const calleeMlKemPublicKey = base64ToBytes(message.mlKemPublicKey);
-    const { cipherText, sharedSecret: mlKemSharedSecret } = ml_kem768.encapsulate(calleeMlKemPublicKey);
+    const { cipherText, sharedSecret: mlKemSharedSecret } = ml_kem768.encapsulate(calleeMlKemPublicKey, this.random(32));
 
     const transcript = this.fullTranscript(cipherText);
     const { confirmKey, mediaBaseKey } = deriveCallKeys(x25519SharedSecret, mlKemSharedSecret, transcript);
@@ -696,7 +731,7 @@ export class CallPqcHandshake {
       mlKemCiphertext: bytesToBase64(cipherText),
       confirmationMac: bytesToBase64(mac),
       keyIndex: 0,
-      createdAt: nowIso(),
+      createdAt: this.nowIso(),
     };
     this.confirmFields = fields;
     (this as any)._pendingConfirmKey = confirmKey;
@@ -730,7 +765,7 @@ export class CallPqcHandshake {
       this.fail("confirm_field_mismatch");
       return null;
     }
-    if (!isFresh(message.createdAt)) {
+    if (!this.isFresh(message.createdAt)) {
       this.fail("confirm_stale");
       return null;
     }
@@ -776,7 +811,7 @@ export class CallPqcHandshake {
       callId: this.callId,
       nonce: this.nonce!,
       confirmationMac: bytesToBase64(ownMac),
-      createdAt: nowIso(),
+      createdAt: this.nowIso(),
     };
     const signature = signTranscriptHybrid(signedTranscriptOf(fields), this.localIdentity);
 

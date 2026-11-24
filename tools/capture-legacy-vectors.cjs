@@ -118,6 +118,9 @@ const sha = (file) => crypto.createHash("sha256").update(fs.readFileSync(file).t
     [lib("lib/supabase.ts")]: { supabase },
   });
   const frame = await import(pathToFileURL(path.join(siteDir, "src/terminal/crypto/frameCrypto.js")).href);
+  const terminalCall = await import(pathToFileURL(path.join(siteDir, "src/terminal/crypto/callPqcHandshake.js")).href);
+  const { ed25519 } = require(lib("node_modules/@noble/curves/ed25519.js"));
+  const { ml_dsa65 } = require(lib("node_modules/@noble/post-quantum/ml-dsa.js"));
 
   const legacyCall = {
     Handshake: callModule.CallPqcHandshake,
@@ -147,9 +150,21 @@ const sha = (file) => crypto.createHash("sha256").update(fs.readFileSync(file).t
   out.recovery = await run("recovery", (rand) => scenarios.recoveryScenario(impl, rand));
   out.call = await run("call", (rand) => scenarios.callScenario(impl, rand));
   out.frame = await run("frame", (rand) => scenarios.frameScenario(impl, rand));
+  // The Business Terminal's own handshake implementation, same scenario and stream.
+  const terminalImpl = {
+    call: {
+      Handshake: terminalCall.TerminalCallPqcHandshake,
+      extractDtlsFingerprints: terminalCall.extractDtlsFingerprints,
+      async makeIdentity(credentialId, edSeed, mlDsaSeed) {
+        const dsa = ml_dsa65.keygen(mlDsaSeed);
+        return { credentialId, deviceKeyId: `${credentialId}:call-sign-v1`, ed25519PrivateKey: edSeed, ed25519PublicKey: ed25519.getPublicKey(edSeed), mlDsaSeed, mlDsaSecretKey: dsa.secretKey, mlDsaPublicKey: dsa.publicKey };
+      },
+    },
+  };
+  out.callTerminal = await run("call", (rand) => scenarios.callScenario(terminalImpl, rand));
 
   const appFiles = ["lib/e2ee.ts", "lib/business/crypto/business-crypto-core.js", "lib/group/group-crypto-core.js", "lib/e2ee-keyring.ts", "lib/e2ee-recovery.ts", "lib/passkey-recovery-crypto.ts", "lib/notification-preview-crypto.js", "lib/calling-pqc.ts"];
-  const siteFiles = ["src/terminal/crypto/frameCrypto.js"];
+  const siteFiles = ["src/terminal/crypto/frameCrypto.js", "src/terminal/crypto/callPqcHandshake.js"];
   const doc = {
     note: "TEST ONLY. Captured from deployed Sentient sources with a public deterministic seed. Do not use these keys for anything.",
     seed: scenarios.SCENARIO_SEED,

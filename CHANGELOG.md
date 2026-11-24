@@ -9,5 +9,7 @@ First extraction of Sentient's deployed protocol code. Wire formats unchanged an
 - Revocation checks for business and group wraps and key links prefer the server-recorded time over the signer-claimed time when the server provides it (stricter only).
 - `call`: handshake with storage and network removed (seeds and key lookups injected); one canonical encoding module.
 - `notification-preview`: uses `hybrid-v1` instead of a second copy of its decryption.
+- `hybrid-v1`: consumer attachment format (`attachmentAad`, `sealAttachment`, `openAttachment`) with an optional AEAD hook for native fast paths.
+- `call`: optional `expectPeer` binding check (from the Business Terminal), injectable `random` and `now`, assignable `onSecurityState`; the phone and terminal handshakes were shown byte-identical and are now one class.
 - `random`: CSPRNG, unbiased PINs, tokens and ids.
 - `testing`: deterministic stream for vectors (test only).

@@ -218,3 +218,32 @@ test("random: uniformInt is unbiased (rejection sampling) - chi-square over a de
 test("testing: deterministic stream refuses production-looking seeds", () => {
   assert.throws(() => deterministicRandom("my seed"));
 });
+
+test("call: expectPeer binding check rejects a directory row for the wrong account (verification_failed, not unsupported)", async () => {
+  const id = (c) => C.signingIdentityFromSeeds(c, ...Object.values(C.newSigningSeeds()));
+  const ia = id("ca"), ib = id("cb");
+  const row = (i, userId) => ({ id: i.deviceKeyId, user_id: userId, ed25519_public_key: b64(i.ed25519PublicKey), ml_dsa_public_key: b64(i.mlDsaPublicKey), is_active: true, attestation_verified: false });
+  const caller = new C.CallPqcHandshake({ role: "caller", callId: "c", callerUserId: "A", calleeUserId: "B", localIdentity: ia, getPeerBundle: async () => row(ib, "B"), localDtlsFingerprints: () => [] });
+  const hello = await caller.buildHello();
+  const seen = [];
+  const callee = new C.CallPqcHandshake({ role: "callee", callId: "c", callerUserId: "A", calleeUserId: "B", localIdentity: ib, getPeerBundle: async () => row(ia, "MALLORY"), expectPeer: (b) => b.user_id === "A", localDtlsFingerprints: () => [] });
+  callee.onSecurityState = (s) => seen.push(s.state);
+  assert.equal(await callee.handleHelloBuildAccept(hello), null);
+  assert.equal(callee.state.state, "verification_failed");
+  assert.equal(callee.state.fallbackReason, "peer_identity_mismatch");
+  assert.deepEqual(seen, ["verification_failed"], "assignable listener is notified");
+});
+
+test("hybrid-v1 attachments: AAD bytes are frozen (deployed lib/attachments.ts attachmentAad) and bound to the conversation", () => {
+  const p = { attachmentId: "A", threadId: "T", senderUserId: "S", receiverUserId: "R" };
+  assert.equal(new TextDecoder().decode(H.attachmentAad(p)), '{"version":"sentient-attachment-v1","attachmentId":"A","threadId":"T","senderUserId":"S","receiverUserId":"R"}');
+  const key = new Uint8Array(32).fill(7), nonce = new Uint8Array(24).fill(9);
+  const ct = H.sealAttachment({ ...p, plaintext: new Uint8Array([1, 2, 3]), key, nonce });
+  assert.deepEqual(H.openAttachment({ ...p, ciphertext: ct, key, nonce }), new Uint8Array([1, 2, 3]));
+  for (const field of ["attachmentId", "threadId", "senderUserId", "receiverUserId"]) {
+    assert.throws(() => H.openAttachment({ ...p, [field]: "x", ciphertext: ct, key, nonce }), undefined, field);
+  }
+  const tampered = Uint8Array.from(ct); tampered[0] ^= 1;
+  assert.throws(() => H.openAttachment({ ...p, ciphertext: tampered, key, nonce }));
+  assert.throws(() => H.sealAttachment({ ...p, plaintext: new Uint8Array(1), key: new Uint8Array(16), nonce }), /attachment_key_nonce/);
+});

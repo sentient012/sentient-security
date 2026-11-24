@@ -279,3 +279,64 @@ export function classifyPayload(value: unknown): PayloadClassification {
   }
   return { kind: "hybrid-v1", payload: parsed as HybridMessagePayload };
 }
+
+// ---------------------------------------------------------------------------
+// Consumer attachments ("xchacha20poly1305-v1", descriptor marker
+// "sentient-attachment-v1"). The file is sealed under a random 32-byte key and
+// 24-byte nonce; the descriptor (key, nonce, SHA-256 of the plaintext, name,
+// type) travels as the plaintext of a sentient-hybrid-v1 message.
+// AAD is JSON with THIS property order (not canonical JSON).
+// ---------------------------------------------------------------------------
+export const ATTACHMENT_MESSAGE_MARKER = "sentient-attachment-v1" as const;
+export const ATTACHMENT_ENCRYPTION_VERSION = "xchacha20poly1305-v1" as const;
+
+export type AttachmentAead = {
+  seal: (key: Uint8Array, nonce: Uint8Array, aad: Uint8Array, plaintext: Uint8Array) => Uint8Array;
+  open: (key: Uint8Array, nonce: Uint8Array, aad: Uint8Array, sealed: Uint8Array) => Uint8Array;
+};
+const NOBLE_ATTACHMENT_AEAD: AttachmentAead = {
+  seal: (key, nonce, aad, plaintext) => xchacha20poly1305(key, nonce, aad).encrypt(plaintext),
+  open: (key, nonce, aad, sealed) => xchacha20poly1305(key, nonce, aad).decrypt(sealed),
+};
+
+export function attachmentAad(params: { attachmentId: string; threadId: string; senderUserId: string; receiverUserId: string }): Uint8Array {
+  return utf8ToBytes(
+    JSON.stringify({
+      version: ATTACHMENT_MESSAGE_MARKER,
+      attachmentId: params.attachmentId,
+      threadId: params.threadId,
+      senderUserId: params.senderUserId,
+      receiverUserId: params.receiverUserId,
+    })
+  );
+}
+
+/** Seals attachment bytes. `aead` lets a platform supply a faster implementation of the SAME construction (ciphertext || 16-byte tag). */
+export function sealAttachment(params: {
+  plaintext: Uint8Array;
+  key: Uint8Array;
+  nonce: Uint8Array;
+  attachmentId: string;
+  threadId: string;
+  senderUserId: string;
+  receiverUserId: string;
+  aead?: AttachmentAead;
+}): Uint8Array {
+  if (params.key.length !== 32 || params.nonce.length !== 24) throw new HybridV1Error("attachment_key_nonce");
+  return (params.aead ?? NOBLE_ATTACHMENT_AEAD).seal(params.key, params.nonce, attachmentAad(params), params.plaintext);
+}
+
+/** Opens attachment bytes; throws on authentication failure. The caller also checks the descriptor's SHA-256. */
+export function openAttachment(params: {
+  ciphertext: Uint8Array;
+  key: Uint8Array;
+  nonce: Uint8Array;
+  attachmentId: string;
+  threadId: string;
+  senderUserId: string;
+  receiverUserId: string;
+  aead?: AttachmentAead;
+}): Uint8Array {
+  if (params.key.length !== 32 || params.nonce.length !== 24) throw new HybridV1Error("attachment_key_nonce");
+  return (params.aead ?? NOBLE_ATTACHMENT_AEAD).open(params.key, params.nonce, attachmentAad(params), params.ciphertext);
+}
