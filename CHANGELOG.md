@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- `session/business-roster` (new, NOT independently reviewed): signed, versioned organization roster for the Business Terminal ("sentient-business-roster-v0-experimental"). It lists the authorized Terminal devices and organization access keys. A change must be signed by a device listed in the previous version; rollback, equivocation, gaps, expiry and freezing are detected; an unsigned change is an identity reset. `rosterFilterState` applies the roster to a business v1 key state, so a Terminal device or organization key the server adds by itself receives no conversation key and a Terminal signing key it makes up never verifies.
+- `recovery/keys` (new): Sentient recovery v2 (two 20-digit recovery keys, HKDF-derived server token and backup wrap key, account-bound backup sealing), moved unchanged from the Sentient app so there is one implementation. Byte-identical to the app and the website's WebCrypto derivation (tested).
+- No deployed wire format changes; all legacy parity vectors are unchanged.
+
 ## 0.2.0
 
 - Publishes the session protocols as `session/pqxdh`, `session/ratchet`, `session/negotiation`, `session/device-list`, `session/group-sender-keys` and `session/identity-verification`. They are implemented and tested but NOT independently reviewed, and every Sentient release keeps them off by default. No deployed wire format changes: all legacy parity vectors are unchanged.

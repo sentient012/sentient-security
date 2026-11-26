@@ -18,10 +18,11 @@ Apache License 2.0.
 | `group`, `group/keys` | `sentient-group-*-v1`: group-key epochs, signed wraps and messages, backward key chain | Deployed |
 | `call`, `call/frame-web` | `sentient-call-hybrid-v1` authenticated hybrid post-quantum call handshake; browser frame encryption byte-compatible with libwebrtc's frame cryptor | Deployed (optional layer on top of WebRTC DTLS-SRTP) |
 | `recovery`, `recovery/keyring`, `recovery/passkey` | Android key-history recovery object (v2), keyring file (v1), recovery-key codec, passkey PRF wrapper | Deployed (Android) |
+| `recovery/keys` (0.3.0) | Recovery v2: two 20-digit recovery keys, HKDF-derived server token and backup wrap key, account-bound encrypted backups | Implemented and tested; used by Sentient 4.2.0 (awaiting mobile distribution); not independently reviewed |
 | `notification-preview` | Decryption for notification previews (also bundled for iOS JavaScriptCore) | Deployed |
 | `kem`, `sig`, `encoding`, `random` | Shared hybrid seal, hybrid signatures, canonical encodings, CSPRNG tokens and PINs | Deployed |
 | `testing` | Deterministic **test-only** random stream | Tests only |
-| `session/pqxdh`, `session/ratchet`, `session/negotiation`, `session/device-list`, `session/group-sender-keys`, `session/identity-verification` | The 4.2.0 session protocols: PQXDH-style hybrid key agreement, Double Ratchet with a sparse ML-KEM-768 epoch ratchet (SPQR-inspired, not SPQR), downgrade pins, signed device lists, group sender keys, safety-number-style codes | **Implemented and tested; NOT independently reviewed; off by default in every Sentient release** (since 0.2.0; source in `src/experimental/`) |
+| `session/pqxdh`, `session/ratchet`, `session/negotiation`, `session/device-list`, `session/group-sender-keys`, `session/identity-verification`, `session/business-roster` (0.3.0) | The 4.2.0 session protocols: PQXDH-style hybrid key agreement, Double Ratchet with a sparse ML-KEM-768 epoch ratchet (SPQR-inspired, not SPQR), downgrade pins, signed device lists, group sender keys, safety-number-style codes, signed Business Terminal organization rosters | **Implemented and tested; NOT independently reviewed; off by default in every Sentient release** (since 0.2.0; source in `src/experimental/`) |
 
 The `session/*` subpaths are published so that reviewers and the Sentient apps
 use one implementation. Publishing is not activation: no Sentient release sends

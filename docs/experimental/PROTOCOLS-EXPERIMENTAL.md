@@ -166,3 +166,17 @@ independent reviewer. Each has a regression test in
 4. Real-device performance on low-end Android (only desktop figures exist).
 5. A product design for key-change warnings and identity resets.
 6. A patent and licensing review.
+
+## Business Terminal organization roster (`sentient-business-roster-v0-experimental`, 0.3.0)
+
+Business v1 lets the server choose who must be able to read a business conversation (the organization's Terminal devices and its organization access key) and which Terminal signing keys are genuine. The roster moves that decision to the organization's own devices:
+
+- **Statement:** `{ v, organizationId, version, devices[], orgKeys[], issuedAt, expiresAt, signerKeyId, signature }`, signed with Ed25519 + ML-DSA-65; both must verify. Each device lists its key id, business user, signing keys and encryption keys.
+- **Versions:** version n + 1 must be signed by a device listed in version n with the same signing keys. Gaps are rejected; walk the chain with `evaluateRosterChain`.
+- **Detection:** a lower version is `stale`, the same version with different content is `equivocation`, and an expired roster is `frozen` or `expired`. A roster signed only by a device the pinned roster does not list is an `identity_reset` and must be shown to the user, never accepted silently.
+- **Applying it:** `rosterFilterState(state, current, history)` keeps only these:
+  - Terminal recipients and organization access keys listed in the current roster with the same encryption keys;
+  - Terminal signing keys listed with the same signing keys in any accepted version, so a former employee's messages stay verifiable.
+
+  Customer devices pass unchanged.
+- **Not provided:** key transparency (equivocation towards people who never compare rosters), and real-world identity of the organization.
