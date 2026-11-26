@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
+
+- Publishes the session protocols as `session/pqxdh`, `session/ratchet`, `session/negotiation`, `session/device-list`, `session/group-sender-keys` and `session/identity-verification`. They are implemented and tested but NOT independently reviewed, and every Sentient release keeps them off by default. No deployed wire format changes: all legacy parity vectors are unchanged.
 
 - experimental fixes from the 2026-11-25 audit (not reviewed, still off by default):
   - E-1 negotiation: default bundles sign both suite ids; either id selects the session suite.

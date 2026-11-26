@@ -1,7 +1,7 @@
 # Security roadmap (advanced capabilities)
 
-Nothing on this page is deployed. Experimental code lives in `src/experimental/`,
-is excluded from the published package, and must not be activated in any
+Nothing on this page is active for Sentient users. The code lives in `src/experimental/`,
+is published as `@sentient012/security/session/*` since 0.2.0, and must not be activated in any
 Sentient client until it has been independently reviewed and the founder has
 explicitly authorized deployment. A new protocol will always get a new protocol
 identifier, explicit version negotiation and downgrade protection. It will never

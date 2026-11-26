@@ -21,9 +21,12 @@ Apache License 2.0.
 | `notification-preview` | Decryption for notification previews (also bundled for iOS JavaScriptCore) | Deployed |
 | `kem`, `sig`, `encoding`, `random` | Shared hybrid seal, hybrid signatures, canonical encodings, CSPRNG tokens and PINs | Deployed |
 | `testing` | Deterministic **test-only** random stream | Tests only |
+| `session/pqxdh`, `session/ratchet`, `session/negotiation`, `session/device-list`, `session/group-sender-keys`, `session/identity-verification` | The 4.2.0 session protocols: PQXDH-style hybrid key agreement, Double Ratchet with a sparse ML-KEM-768 epoch ratchet (SPQR-inspired, not SPQR), downgrade pins, signed device lists, group sender keys, safety-number-style codes | **Implemented and tested; NOT independently reviewed; off by default in every Sentient release** (since 0.2.0; source in `src/experimental/`) |
 
-Experimental work (`src/experimental/`) is **not** part of the published package
-and is not used by any Sentient client. See [ROADMAP.md](ROADMAP.md).
+The `session/*` subpaths are published so that reviewers and the Sentient apps
+use one implementation. Publishing is not activation: no Sentient release sends
+or accepts these protocols until an independent review is complete and the
+founder authorizes it. See [ROADMAP.md](ROADMAP.md).
 
 Read [THREAT_MODEL.md](THREAT_MODEL.md) before relying on any of this. In
 particular, `sentient-hybrid-v1` does **not** authenticate senders

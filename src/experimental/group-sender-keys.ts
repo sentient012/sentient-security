@@ -1,5 +1,5 @@
 /*
- * EXPERIMENTAL - NOT REVIEWED - NOT USED BY ANY SENTIENT CLIENT.
+ * NOT REVIEWED. Published as @sentient012/security/session/* since 0.2.0; off by default in every Sentient release.
  * Protocol id: "sentient-group-sk-v0-experimental".
  *
  * Sender-key group messaging with per-sender symmetric ratchets, as a possible

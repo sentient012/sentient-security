@@ -1,9 +1,13 @@
-# Experimental protocols (NOT deployed, NOT reviewed)
+# Session protocols (NOT active for users, NOT reviewed)
 
-Everything here lives in `src/experimental/`. It is excluded from the published
-package, is not used by any Sentient client, and is off by default
-(`EXPERIMENTAL_PROTOCOLS_ENABLED_DEFAULT = false`). It is published so that
-cryptographers can review it **before** any deployment is considered.
+**Status: implemented in source and tested; published in the npm package as
+`@sentient012/security/session/*` since 0.2.0; NOT independently reviewed; off
+by default in every Sentient release** (`EXPERIMENTAL_PROTOCOLS_ENABLED_DEFAULT
+= false`). The source lives in `src/experimental/`. Sentient's server already
+hosts the public key directory these protocols need (identities, signed and
+one-time prekeys, signed device lists), and nothing uses it until a release
+turns the protocols on. Cryptographers are invited to review it **before**
+activation.
 
 | Module | Protocol id | Purpose |
 |---|---|---|

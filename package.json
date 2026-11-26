@@ -1,7 +1,7 @@
 {
   "name": "@sentient012/security",
-  "version": "0.1.0",
-  "description": "Sentient's cryptographic protocol implementations (hybrid X25519 + ML-KEM-768 messaging, business and group protocols, authenticated post-quantum call handshake, key recovery formats). Not independently audited.",
+  "version": "0.2.0",
+  "description": "Sentient's cryptographic protocol implementations: deployed hybrid X25519 + ML-KEM-768 messaging, business, group, call-handshake and recovery formats, plus the unreviewed 4.2.0 session protocols (PQXDH-style key agreement, Double Ratchet with sparse ML-KEM epochs, signed device lists, group sender keys, identity verification), off by default. Not independently audited.",
   "license": "Apache-2.0",
   "author": "Sentient",
   "repository": {
@@ -20,7 +20,6 @@
   "files": [
     "dist",
     "src",
-    "!src/experimental",
     "LICENSE",
     "NOTICE",
     "THIRD_PARTY_NOTICES.md",
@@ -96,6 +95,30 @@
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "default": "./dist/testing/index.js"
+    },
+    "./session/pqxdh": {
+      "types": "./dist/experimental/pqxdh.d.ts",
+      "default": "./dist/experimental/pqxdh.js"
+    },
+    "./session/ratchet": {
+      "types": "./dist/experimental/ratchet.d.ts",
+      "default": "./dist/experimental/ratchet.js"
+    },
+    "./session/device-list": {
+      "types": "./dist/experimental/device-list.d.ts",
+      "default": "./dist/experimental/device-list.js"
+    },
+    "./session/group-sender-keys": {
+      "types": "./dist/experimental/group-sender-keys.d.ts",
+      "default": "./dist/experimental/group-sender-keys.js"
+    },
+    "./session/identity-verification": {
+      "types": "./dist/experimental/identity-verification.d.ts",
+      "default": "./dist/experimental/identity-verification.js"
+    },
+    "./session/negotiation": {
+      "types": "./dist/experimental/negotiation.d.ts",
+      "default": "./dist/experimental/negotiation.js"
     }
   },
   "scripts": {
