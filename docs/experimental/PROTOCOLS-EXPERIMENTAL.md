@@ -180,3 +180,12 @@ Business v1 lets the server choose who must be able to read a business conversat
 
   Customer devices pass unchanged.
 - **Not provided:** key transparency (equivocation towards people who never compare rosters), and real-world identity of the organization.
+
+## Key transparency log (`sentient-kt-v0-experimental`, 0.4.0)
+
+The directory server can show a client a key that was never published by its owner. The log makes every key a client relies on public and append-only:
+
+- **Entries:** each published device identity, signed device list, business roster and call key binding is one entry, an exact UTF-8 string chosen by the log. Leaf = SHA-256(0x00 || entry); node = SHA-256(0x01 || left || right) (RFC 9162).
+- **Tree heads:** `{ v, logId, size, root, timestamp }`, signed with Ed25519 + ML-DSA-65 (both must verify) under a log key clients pin.
+- **Clients:** require an inclusion proof for a key before trusting it; check each new head against the last one with a consistency proof (`evaluateTreeHead`: rollback, equivocation, inconsistency, stale and future heads are rejected); and monitor their own account's entries, so a key published for them by someone else is noticed by their own devices.
+- **Not provided:** detection of a split view (separate consistent logs per client) without tree-head gossip between clients or an independent auditor; directory privacy (entries name accounts, as the directory does); any protection before a client first pins a head.

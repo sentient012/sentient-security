@@ -1,7 +1,7 @@
 {
   "name": "@sentient012/security",
-  "version": "0.3.0",
-  "description": "Sentient's cryptographic protocol implementations: deployed hybrid X25519 + ML-KEM-768 messaging, business, group, call-handshake and recovery formats, plus the unreviewed 4.2.0 session protocols (PQXDH-style key agreement, Double Ratchet with sparse ML-KEM epochs, signed device lists, group sender keys, identity verification), off by default. Not independently audited.",
+  "version": "0.4.0",
+  "description": "Sentient's cryptographic protocol implementations: deployed hybrid X25519 + ML-KEM-768 messaging, business, group, call-handshake and recovery formats, plus the unreviewed 4.2.0 session protocols (PQXDH-style key agreement, Double Ratchet with sparse ML-KEM epochs, signed device lists, group sender keys, identity verification, business rosters, a key transparency log), off by default. Not independently audited.",
   "license": "Apache-2.0",
   "author": "Sentient",
   "repository": {
@@ -127,6 +127,10 @@
     "./session/business-roster": {
       "types": "./dist/experimental/business-roster.d.ts",
       "default": "./dist/experimental/business-roster.js"
+    },
+    "./session/transparency": {
+      "types": "./dist/experimental/transparency.d.ts",
+      "default": "./dist/experimental/transparency.js"
     }
   },
   "scripts": {

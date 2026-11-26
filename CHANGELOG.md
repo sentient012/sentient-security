@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+
+- `session/transparency` (new, NOT independently reviewed): key transparency log ("sentient-kt-v0-experimental"). A Merkle tree over directory entries with RFC 9162 hashing (leaf 0x00, node 0x01); `MerkleTree` builds roots, inclusion proofs and consistency proofs for the log operator; `verifyInclusion` and `verifyConsistency` implement the RFC 9162 verification algorithms. Tree heads are signed with Ed25519 + ML-DSA-65 (`signTreeHead`, `verifyTreeHead`); `evaluateTreeHead` rejects a bad signature, rollback, equivocation, an inconsistent history, and stale or future heads. Split views are not detected without gossip or an auditor.
+- No deployed wire format changes; all legacy parity vectors are unchanged.
+
 ## 0.3.0
 
 - `session/business-roster` (new, NOT independently reviewed): signed, versioned organization roster for the Business Terminal ("sentient-business-roster-v0-experimental"). It lists the authorized Terminal devices and organization access keys. A change must be signed by a device listed in the previous version; rollback, equivocation, gaps, expiry and freezing are detected; an unsigned change is an identity reset. `rosterFilterState` applies the roster to a business v1 key state, so a Terminal device or organization key the server adds by itself receives no conversation key and a Terminal signing key it makes up never verifies.
