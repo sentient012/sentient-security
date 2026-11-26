@@ -1,6 +1,11 @@
 # Protocol specifications
 
-Byte-level descriptions of the deployed protocols. The code is authoritative.
+Byte-level descriptions of the protocols in this package. The code is authoritative.
+The Sentient 4.2.0 session protocols (key agreement, ratchet, device lists, group
+sender keys, organization rosters, call key bindings and key transparency) are
+specified in [docs/session-protocols.md](docs/session-protocols.md); this page covers
+the shared encodings and the business, group v1, call, recovery and
+Sentient 4.1.0 compatibility formats.
 Where this document and the code disagree, that is a bug: please report it.
 Notation: `||` concatenation, `b64` standard base64 with padding,
 `utf8(x)` UTF-8 bytes, `canon(x)` the canonical JSON defined below.
@@ -118,7 +123,19 @@ HKDF-SHA-256(mediaBaseKey, salt = "sentient-call-hybrid-v1:ratchet-salt",
 info = 128 zero bytes). Audio keeps 1 header byte in the clear as AAD. Frame =
 header || ciphertext || tag || IV(12) || [12, keyIndex].
 
-## Recovery (Android)
+## Recovery v2 (recovery/keys, Sentient 4.2.0)
+
+- Two recovery keys, each 20 uniformly random decimal digits: 72 random bits, redrawn when
+  at or above the largest multiple of 10^20 below 2^72, then reduced mod 10^20.
+- `ikm = utf8("sentient-recovery-v2|" || key1 || "|" || key2)`, salt = `utf8("sentient-recovery-v2/salt")`.
+- authToken = hex(HKDF-SHA-256(ikm, salt, "sentient-recovery-v2/auth", 32)); the server stores
+  only SHA-256(authToken).
+- wrapKey = HKDF-SHA-256(ikm, salt, "sentient-recovery-v2/backup-wrap", 32); it never leaves the device.
+- Backup key (32 random bytes) wrapped with XChaCha20-Poly1305 under wrapKey, AAD
+  `sentient-backup-key-v1|user:<id>`. Backup snapshots sealed under the backup key, AAD
+  `sentient-backup-v1|user:<id>|version:<n>`.
+
+## Recovery (Android, compatibility)
 
 - v1 keyring file: key = HKDF-SHA-256(serverShare(32), salt(32),
   "sentient-android-e2ee-keyring-v1"); AAD `...|user:<id>`.

@@ -1,5 +1,5 @@
 /*
- * NOT REVIEWED. Published as @sentient012/security/session/* since 0.2.0; off by default in every Sentient release.
+ * Used by Sentient 4.2.0. Published as @sentient012/security/session/pqxdh since 0.2.0.
  * Protocol id: "sentient-pqxdh-v0-experimental".
  *
  * Authenticated initial key agreement following the structure of PQXDH

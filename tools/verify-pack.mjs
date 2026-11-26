@@ -11,7 +11,7 @@ const files = info.files.map((f) => f.path).sort();
 const allowed = [
   /^dist\/[a-z0-9-]+(\/[a-z0-9-]+)*\.(js|d\.ts)$/,
   /^src\/(?!testing\/.*vector)[a-z0-9-]+(\/[a-z0-9-]+)*\.(js|ts)$/,
-  /^(LICENSE|NOTICE|README\.md|SECURITY\.md|THREAT_MODEL\.md|PROTOCOLS\.md|CHANGELOG\.md|THIRD_PARTY_NOTICES\.md|RESEARCHERS\.md|package\.json)$/,
+  /^(LICENSE|NOTICE|README\.md|SECURITY\.md|THREAT_MODEL\.md|PROTOCOLS\.md|CHANGELOG\.md|THIRD_PARTY_NOTICES\.md|RESEARCHERS\.md|ROADMAP\.md|docs\/session-protocols\.md|package\.json)$/,
 ];
 const bad = files.filter((f) => !allowed.some((re) => re.test(f)));
 const forbidden = files.filter((f) => /testing\/.*vector|\.env|\.pem|\.key$|\.tgz$/.test(f));

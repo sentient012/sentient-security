@@ -30,12 +30,14 @@ action against good-faith research that follows these rules.
 
 | Version | Supported |
 |---|---|
-| 0.1.x | Yes (current) |
+| 0.4.x | Yes (current; used by Sentient 4.2.0) |
+| 0.1.x – 0.3.x | Fixes are released as 0.4.x |
 
 ## Scope
 
 In scope: the code in this repository, its build output, and the
-correctness of claims in README.md, THREAT_MODEL.md and PROTOCOLS.md.
+correctness of claims in README.md, THREAT_MODEL.md, PROTOCOLS.md and
+docs/session-protocols.md.
 Out of scope: Sentient's server, apps and infrastructure. You may still report
 issues there privately through the same channel, but this repository's code
 does not implement them.

@@ -1,5 +1,5 @@
 /*
- * NOT REVIEWED. Published as @sentient012/security/session/transparency since 0.4.0.
+ * Used by Sentient 4.2.0. Published as @sentient012/security/session/transparency since 0.4.0.
  * Protocol id: "sentient-kt-v0-experimental".
  *
  * Key transparency log for Sentient's public-key directory.

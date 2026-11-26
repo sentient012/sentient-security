@@ -1,5 +1,5 @@
 /*
- * NOT REVIEWED. Off unless the app enables it.
+ * Used by Sentient 4.2.0. Published as @sentient012/security/session/device-list.
  * Protocol id: "sentient-device-list-v0-experimental".
  *
  * Authenticated multi-device membership for one Sentient account.

@@ -5,17 +5,21 @@ not, and how to get started quickly.
 
 ## What you can review
 
-The cryptographic protocol code that the Sentient apps and Business Terminal
-run, unmodified in behaviour: the legacy-parity vectors prove byte-for-byte
-equality with the deployed implementations (see [TESTING.md](TESTING.md)).
+The cryptographic protocol code that the Sentient app and Business Terminal
+run. The app and Terminal import this package at an exact version; the
+legacy-parity vectors prove byte-for-byte equality with the formats Sentient
+has deployed (see [TESTING.md](TESTING.md)).
 
 | Area | Start here | Questions worth asking |
 |---|---|---|
-| Consumer 1:1 messages | `src/hybrid-v1/index.ts` | Is the hybrid combiner sound? Is every routing field bound? What follows from the absence of sender authentication? |
-| Business messaging | `src/business/core.js`, `conversation-keys.js` | Can a wrap or message be replayed, re-targeted or attributed to someone else? Is the commitment check complete? |
-| Groups | `src/group/core.js`, `keys.js` | What can a removed member still do? Are key links and revocation checks right? |
+| Key agreement and ratchet (Sentient 4.2.0) | `src/experimental/pqxdh.ts`, `ratchet.ts` | Do the deviations from PQXDH hold up? Is the epoch ratchet's post-compromise claim right? Can skipped keys or epoch retention be abused? |
+| Device lists, identity verification, negotiation | `src/experimental/device-list.ts`, `identity-verification.ts`, `negotiation.ts` | Can a device be added, a list rolled back or forked, or a session downgraded? |
+| Groups | `src/experimental/group-sender-keys.ts`, `src/group/*` | What can a removed member still do? Can a hand-off or message be attributed to someone else? |
+| Business messaging and rosters | `src/business/*`, `src/experimental/business-roster.ts` | Can a wrap or message be replayed or re-targeted? Can the server get a key to an unapproved device? |
 | Calls | `src/call/handshake.ts`, `frame-web.js` | Is the transcript complete (DTLS binding, roles, nonces)? Can the handshake be downgraded or replayed? |
-| Recovery | `src/recovery/*` | Are the split-knowledge claims accurate? |
+| Key transparency | `src/experimental/transparency.ts` | Are the inclusion and consistency checks complete? What can a malicious log still do? |
+| Recovery | `src/recovery/*` | Are the two-key and split-knowledge claims accurate? |
+| Compatibility (Sentient 4.1.0) | `src/hybrid-v1/index.ts` | What follows from the absence of sender authentication? |
 | Encodings | `src/encoding`, `src/kem` | Are there canonicalization ambiguities? |
 
 Known limitations are listed in [THREAT_MODEL.md](THREAT_MODEL.md). A report
@@ -43,7 +47,7 @@ convenient harness for writing your own attack cases.
 
 ## Not in this repository
 
-The server-side controls (authorization, pairing rules, rate limits, device
-enrollment, revocation, attestation policy), the mobile apps' platform key
-storage and Sentient's infrastructure are proprietary. A review of this package
-is not a review of the Sentient service, and we will not describe it as one.
+The server-side controls (authorization, row-level security, pairing rules,
+rate limits, device enrollment, attestation, revocation), the mobile apps' and
+Terminal's key storage and Sentient's infrastructure live in Sentient's
+application and backend codebases.

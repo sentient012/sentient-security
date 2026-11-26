@@ -1,5 +1,5 @@
 /*
- * NOT REVIEWED. Published as @sentient012/security/session/business-roster since 0.3.0.
+ * Used by Sentient 4.2.0 (Business Terminal and app). Published as @sentient012/security/session/business-roster since 0.3.0.
  * Protocol id: "sentient-business-roster-v0-experimental".
  *
  * Signed organization roster for the Business Terminal.

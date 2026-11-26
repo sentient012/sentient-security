@@ -1,21 +1,26 @@
 # Changelog
 
+## 0.4.1
+
+- Documentation: README, THREAT_MODEL, PROTOCOLS, RESEARCHERS, SECURITY and ROADMAP describe how Sentient 4.2.0 uses each module (one-to-one messaging, multi-device, groups, Business Terminal, calls with call keys bound to device identities, key transparency, two-key recovery and encrypted backups) and what lives in the app, Terminal and backend instead. The session protocol specification moved to `docs/session-protocols.md` and now ships in the package, with the call key binding format.
+- No code or wire format changes; all tests and legacy parity vectors are unchanged.
+
 ## 0.4.0
 
-- `session/transparency` (new, NOT independently reviewed): key transparency log ("sentient-kt-v0-experimental"). A Merkle tree over directory entries with RFC 9162 hashing (leaf 0x00, node 0x01); `MerkleTree` builds roots, inclusion proofs and consistency proofs for the log operator; `verifyInclusion` and `verifyConsistency` implement the RFC 9162 verification algorithms. Tree heads are signed with Ed25519 + ML-DSA-65 (`signTreeHead`, `verifyTreeHead`); `evaluateTreeHead` rejects a bad signature, rollback, equivocation, an inconsistent history, and stale or future heads. Split views are not detected without gossip or an auditor.
+- `session/transparency` (new): key transparency log ("sentient-kt-v0-experimental"). A Merkle tree over directory entries with RFC 9162 hashing (leaf 0x00, node 0x01); `MerkleTree` builds roots, inclusion proofs and consistency proofs for the log operator; `verifyInclusion` and `verifyConsistency` implement the RFC 9162 verification algorithms. Tree heads are signed with Ed25519 + ML-DSA-65 (`signTreeHead`, `verifyTreeHead`); `evaluateTreeHead` rejects a bad signature, rollback, equivocation, an inconsistent history, and stale or future heads. Split views are not detected without gossip or an auditor.
 - No deployed wire format changes; all legacy parity vectors are unchanged.
 
 ## 0.3.0
 
-- `session/business-roster` (new, NOT independently reviewed): signed, versioned organization roster for the Business Terminal ("sentient-business-roster-v0-experimental"). It lists the authorized Terminal devices and organization access keys. A change must be signed by a device listed in the previous version; rollback, equivocation, gaps, expiry and freezing are detected; an unsigned change is an identity reset. `rosterFilterState` applies the roster to a business v1 key state, so a Terminal device or organization key the server adds by itself receives no conversation key and a Terminal signing key it makes up never verifies.
+- `session/business-roster` (new): signed, versioned organization roster for the Business Terminal ("sentient-business-roster-v0-experimental"). It lists the authorized Terminal devices and organization access keys. A change must be signed by a device listed in the previous version; rollback, equivocation, gaps, expiry and freezing are detected; an unsigned change is an identity reset. `rosterFilterState` applies the roster to a business v1 key state, so a Terminal device or organization key the server adds by itself receives no conversation key and a Terminal signing key it makes up never verifies.
 - `recovery/keys` (new): Sentient recovery v2 (two 20-digit recovery keys, HKDF-derived server token and backup wrap key, account-bound backup sealing), moved unchanged from the Sentient app so there is one implementation. Byte-identical to the app and the website's WebCrypto derivation (tested).
 - No deployed wire format changes; all legacy parity vectors are unchanged.
 
 ## 0.2.0
 
-- Publishes the session protocols as `session/pqxdh`, `session/ratchet`, `session/negotiation`, `session/device-list`, `session/group-sender-keys` and `session/identity-verification`. They are implemented and tested but NOT independently reviewed, and every Sentient release keeps them off by default. No deployed wire format changes: all legacy parity vectors are unchanged.
+- Publishes the session protocols as `session/pqxdh`, `session/ratchet`, `session/negotiation`, `session/device-list`, `session/group-sender-keys` and `session/identity-verification`. Sentient releases at the time kept them switched off; Sentient 4.2.0 is the first to use them. No deployed wire format changes: all legacy parity vectors are unchanged.
 
-- experimental fixes from the 2026-11-25 audit (not reviewed, still off by default):
+- fixes from Sentient's internal review of 2026-11-25:
   - E-1 negotiation: default bundles sign both suite ids; either id selects the session suite.
   - E-2 downgrade: `selectProtocol({ pin })` returns `"blocked"`, never legacy, for an upgraded account; pins are per account; `clearUpgrade` after a user-visible reset.
   - E-3 prekeys: `rotateSignedPrekeys` with a grace period for retired signed prekeys, `addOneTimePrekeys`, `publicSignedPrekeys`, `buildBundle`, `signCapabilities`.

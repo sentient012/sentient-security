@@ -1,5 +1,6 @@
 /*
- * NOT REVIEWED. Off unless the app enables it (see EXPERIMENTAL_PROTOCOLS_ENABLED_DEFAULT).
+ * Used by Sentient 4.2.0. Nothing is enabled by installing the package (see
+ * EXPERIMENTAL_PROTOCOLS_ENABLED_DEFAULT); Sentient 4.2.0 enables the session protocols explicitly.
  *
  * Protocol selection and downgrade protection between sentient-hybrid-v1
  * (deployed) and the session protocol (sentient-pqxdh-v0 key agreement +

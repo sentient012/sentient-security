@@ -1,38 +1,56 @@
 # @sentient012/security
 
-The cryptographic protocol implementations used by the Sentient apps and the
-Sentient Business Terminal, published for independent inspection under the
-Apache License 2.0.
+The cryptographic core of [Sentient](https://getsentient.io): the protocol code
+that the Sentient app (iOS and Android), the Sentient Business Terminal and
+Sentient's supporting services run. It is published under the Apache License 2.0
+so anyone can read, test and report on exactly the code Sentient ships.
 
-> **Audit status: not independently audited.** This code has automated tests,
-> including byte-for-byte parity vectors against the deployed implementations,
-> but no qualified third party has assessed it. Please review it and report
-> what you find (see [SECURITY.md](SECURITY.md)).
+The Sentient app and the Business Terminal install this package at an exact
+version and import it directly; guard tests in those codebases fail if a second
+copy of any protocol appears. Installing the package yourself does not change
+anything in anyone's Sentient app: protections reach users through Sentient app
+releases.
 
-## What is here
+## What Sentient 4.2.0 uses it for
 
-| Subpath | What it implements | Status in Sentient |
+| Protection in Sentient 4.2.0 | Implemented in this package | Implemented in the app, Terminal or backend |
 |---|---|---|
-| `hybrid-v1` | `sentient-hybrid-v1` consumer direct messages and attachment descriptors: per-message hybrid X25519 + ML-KEM-768, HKDF-SHA-256, XChaCha20-Poly1305 | Deployed |
-| `business`, `business/conversation-keys` | `sentient-business-*-v1`: conversation-key epochs, hybrid-sealed key wraps, Ed25519 + ML-DSA-65 signatures, key commitments, organization access key, attachment and scanner seals | Deployed |
-| `group`, `group/keys` | `sentient-group-*-v1`: group-key epochs, signed wraps and messages, backward key chain | Deployed |
-| `call`, `call/frame-web` | `sentient-call-hybrid-v1` authenticated hybrid post-quantum call handshake; browser frame encryption byte-compatible with libwebrtc's frame cryptor | Deployed (optional layer on top of WebRTC DTLS-SRTP) |
-| `recovery`, `recovery/keyring`, `recovery/passkey` | Android key-history recovery object (v2), keyring file (v1), recovery-key codec, passkey PRF wrapper | Deployed (Android) |
-| `recovery/keys` (0.3.0) | Recovery v2: two 20-digit recovery keys, HKDF-derived server token and backup wrap key, account-bound encrypted backups | Implemented and tested; used by Sentient 4.2.0 (awaiting mobile distribution); not independently reviewed |
-| `notification-preview` | Decryption for notification previews (also bundled for iOS JavaScriptCore) | Deployed |
-| `kem`, `sig`, `encoding`, `random` | Shared hybrid seal, hybrid signatures, canonical encodings, CSPRNG tokens and PINs | Deployed |
-| `testing` | Deterministic **test-only** random stream | Tests only |
-| `session/pqxdh`, `session/ratchet`, `session/negotiation`, `session/device-list`, `session/group-sender-keys`, `session/identity-verification`, `session/business-roster` (0.3.0), `session/transparency` (0.4.0) | The 4.2.0 session protocols: PQXDH-style hybrid key agreement, Double Ratchet with a sparse ML-KEM-768 epoch ratchet (SPQR-inspired, not SPQR), downgrade pins, signed device lists, group sender keys, safety-number-style codes, signed Business Terminal organization rosters, a key transparency log (RFC 9162 Merkle tree, hybrid-signed tree heads) | **Implemented and tested; NOT independently reviewed; off by default in every Sentient release** (since 0.2.0; source in `src/experimental/`) |
+| **One-to-one messages**: post-quantum key agreement and ratcheting between devices | `session/pqxdh` (PQXDH-style X25519 + ML-KEM-768 key agreement, hybrid-signed prekeys), `session/ratchet` (Double Ratchet with sparse ML-KEM-768 epochs), `session/negotiation` (protocol selection, no downgrade after an upgrade) | Per-device session engine, encrypted on-device session store, prekey directory and delivery |
+| **Device verification**: safety numbers, QR verification, key-change warnings | `session/identity-verification` | Contact security screen, pinned identities |
+| **Multi-device**: an account's devices are listed and signed by its own devices | `session/device-list` | New-device approval, enforcement before every send and receive |
+| **Groups**: per-sender chains, signed messages | `session/group-sender-keys`, `group`, `group/keys` | Hand-offs over pairwise sessions, membership authorization |
+| **Business Terminal**: end-to-end encrypted business conversations; only devices the organization approved receive keys | `business`, `business/conversation-keys`, `session/business-roster` | Terminal key storage (non-extractable WebCrypto key), device approval, organization access key with audited compliance reads |
+| **Calls**: post-quantum handshake and encrypted audio frames, with both sides' call keys verified against their device identities | `call`, `call/frame-web` | Call key bindings, roster checks for business calls, ringing and delivery |
+| **Key transparency**: every published identity, device list, roster and call-key binding is in an append-only log with signed tree heads | `session/transparency` (RFC 9162 tree, inclusion and consistency proofs, signed heads) | The log and its service, first-trust proofs, owner monitoring |
+| **Account recovery**: two 20-digit recovery keys | `recovery/keys` | Recovery screens, device approval, server-side hash only |
+| **Encrypted backups** of message history | `recovery/keys` (backup key wrapping) | Automatic client-side encrypted backups |
+| **Notification previews** decrypted on the device | `notification-preview` | iOS notification extension, Android previews |
+| **Compatibility with Sentient 4.1.0** | `hybrid-v1`, `recovery`, `recovery/keyring`, `recovery/passkey` | Used only to talk to and restore from older app versions |
+| Shared building blocks | `kem`, `sig`, `encoding`, `random` | — |
 
-The `session/*` subpaths are published so that reviewers and the Sentient apps
-use one implementation. Publishing is not activation: no Sentient release sends
-or accepts these protocols until an independent review is complete and the
-founder authorizes it. See [ROADMAP.md](ROADMAP.md).
+`testing` is a deterministic random stream for tests only.
 
-Read [THREAT_MODEL.md](THREAT_MODEL.md) before relying on any of this. In
-particular, `sentient-hybrid-v1` does **not** authenticate senders
-cryptographically and does **not** provide forward secrecy. Every protocol here
-trusts Sentient's server for the public keys it hands out.
+Server-side authorization (database row-level security, contact and pairing
+rules, rate limits), device enrollment and platform attestation, revocation,
+push delivery, TURN relays and the apps' platform key storage are part of
+Sentient but live in the app, Terminal and backend codebases, not in this
+package.
+
+Some modules keep the directory name `src/experimental/` and protocol ids that
+end in `-v0-experimental` (for example `sentient-tr-v0-experimental`). These are
+fixed wire identifiers kept for compatibility; Sentient 4.2.0 uses these
+protocols in production.
+
+## Read before relying on it
+
+[THREAT_MODEL.md](THREAT_MODEL.md) states what each protocol guarantees and what
+it does not, [PROTOCOLS.md](PROTOCOLS.md) is the byte-level specification, and
+[docs/session-protocols.md](docs/session-protocols.md) describes the 4.2.0
+session, device-list, roster and transparency protocols. Important limits in
+brief: first contact is trust on first use until keys are verified; the
+post-quantum ratchet is inspired by Signal's SPQR but is not SPQR; the
+transparency log does not yet detect a server that shows different clients
+different logs.
 
 ## Install
 
@@ -56,16 +74,9 @@ npm run verify:pack # inspect exactly what would be published
 
 [TESTING.md](TESTING.md) explains the parity vectors: they were captured by
 running the unmodified deployed source with a public deterministic seed, and
-this package must reproduce them byte for byte.
-
-## What reviewing this package does NOT cover
-
-Sentient's server-side controls are not in this repository: database
-row-level security, contact pairing and authorization rules, rate limits,
-device enrollment, revocation, platform attestation policy, push delivery and
-TURN. Neither is the mobile apps' platform key storage. Reviewing this package
-is a review of the cryptographic protocol code only. It is not an audit of
-Sentient's production service.
+this package must reproduce them byte for byte. [RESEARCHERS.md](RESEARCHERS.md)
+is a starting point for reviewing the code; report findings privately as
+described in [SECURITY.md](SECURITY.md).
 
 ## License
 

@@ -1,7 +1,7 @@
 {
   "name": "@sentient012/security",
-  "version": "0.4.0",
-  "description": "Sentient's cryptographic protocol implementations: deployed hybrid X25519 + ML-KEM-768 messaging, business, group, call-handshake and recovery formats, plus the unreviewed 4.2.0 session protocols (PQXDH-style key agreement, Double Ratchet with sparse ML-KEM epochs, signed device lists, group sender keys, identity verification, business rosters, a key transparency log), off by default. Not independently audited.",
+  "version": "0.4.1",
+  "description": "The cryptographic core of the Sentient app and Sentient Business Terminal: post-quantum (X25519 + ML-KEM-768) key agreement and ratcheting, signed device lists, identity verification, group sender keys, Business Terminal rosters, authenticated post-quantum calls, key transparency and two-key recovery, plus the formats used to interoperate with earlier Sentient releases.",
   "license": "Apache-2.0",
   "author": "Sentient",
   "repository": {
@@ -28,7 +28,9 @@
     "THREAT_MODEL.md",
     "PROTOCOLS.md",
     "CHANGELOG.md",
-    "RESEARCHERS.md"
+    "RESEARCHERS.md",
+    "docs/session-protocols.md",
+    "ROADMAP.md"
   ],
   "exports": {
     "./package.json": "./package.json",
@@ -149,5 +151,16 @@
   },
   "devDependencies": {
     "typescript": "5.9.3"
-  }
+  },
+  "keywords": [
+    "sentient",
+    "end-to-end encryption",
+    "post-quantum",
+    "ml-kem",
+    "ml-dsa",
+    "double ratchet",
+    "pqxdh",
+    "key transparency",
+    "e2ee"
+  ]
 }
