@@ -137,6 +137,22 @@ Measured with `node tools/bench-experimental.mjs` (rekey interval 20, 200 altern
 
 Low-end Android (Hermes, no JIT for some paths) is expected to be several times slower. It has not been measured.
 
+## 5a. Fixes after the 2026-11-25 internal audit
+
+These were integration defects found by Sentient's own audit, not by an
+independent reviewer. Each has a regression test in
+`test/experimental-defects.test.mjs`.
+
+| Id | Defect | Fix |
+|---|---|---|
+| E-1 | Default bundles signed only the key-agreement id, so the selector always chose legacy | Default capabilities list both suite ids; either id selects the suite |
+| E-2 | An upgraded sender fell back to hybrid-v1 when the server withheld the peer's bundle | `selectProtocol({ pin })` returns `"blocked"`; pins are per account; `clearUpgrade` only after a user-visible reset |
+| E-3 | Rotating the signed prekey broke initial messages in flight | `rotateSignedPrekeys` keeps retired prekeys for a grace period (14 days by default); `addOneTimePrekeys` for replenishment |
+| E-4 | A frozen or forked device list went undetected | Signed `expiresAt` (30 days), `stale` verdict, `refreshDeviceList`, and `deviceListDigest` / `compareGossip` for fork detection between peers. This is **not** key transparency |
+| E-5 | A sender-key hand-off was accepted for any claimed sender | `acceptDistribution(d, from, group)` requires the authenticated session peer |
+| E-6 | A message delayed across two PQ epochs was lost | Four PQ receiving epochs are kept |
+| E-8 | Last-resort replay records were evicted by count | Records are bound to, and pruned with, their signed prekey |
+
 ## 6. Validation still required before ANY production use
 
 1. Independent cryptographic review of all modules.

@@ -38,7 +38,7 @@ import { bytesToHex, concatBytes, randomBytes, utf8ToBytes } from "@noble/hashes
 
 import { canonicalBytes, fromB64, toB64 } from "../encoding/index.js";
 import { signHybrid, signingKeysFromSeeds, verifyHybrid } from "../business/core.js";
-import { decrypt, encrypt, initInitiator, initResponder, type RatchetMessage, type RatchetState } from "./ratchet.js";
+import { RATCHET_PROTOCOL, decrypt, encrypt, initInitiator, initResponder, type RatchetMessage, type RatchetState } from "./ratchet.js";
 
 export const PQXDH_PROTOCOL = "sentient-pqxdh-v0-experimental" as const;
 export const EXPERIMENTAL = true as const;
@@ -115,14 +115,30 @@ export type PrekeyBundle = {
 
 /** Private prekey material the device keeps. One-time entries are deleted after use. */
 export type PrekeyStore = {
-  spk: { id: string; priv: string };
-  pqspk: { id: string; dk: string };
+  spk: { id: string; priv: string; createdAt?: string };
+  pqspk: { id: string; dk: string; createdAt?: string };
   opks: Record<string, string>;
   pqopks: Record<string, string>;
-  /** Hashes of initial messages already accepted with only last-resort prekeys (replay protection). */
+  /**
+   * "<signed prekey id>|<hash>" of initial messages already accepted with only
+   * last-resort prekeys (replay protection). Entries are dropped together with
+   * their signed prekey (audit E-8), so a replay can never outlive the key it needs.
+   */
   seenInitial: string[];
+  /**
+   * Signed prekeys replaced by rotateSignedPrekeys, kept for a grace period so
+   * initial messages already in flight still open (audit E-3).
+   */
+  retired?: { spks: { id: string; priv: string; retiredAt: string }[]; pqspks: { id: string; dk: string; retiredAt: string }[] };
 };
 const MAX_SEEN_INITIAL = 10000;
+/** Default grace period for a rotated signed prekey: initial messages addressed to it are accepted this long. */
+export const SIGNED_PREKEY_GRACE_MS = 14 * 24 * 60 * 60 * 1000;
+/** Recommended rotation interval for signed prekeys (the app schedules rotateSignedPrekeys). */
+export const SIGNED_PREKEY_ROTATION_MS = 7 * 24 * 60 * 60 * 1000;
+export const MAX_ONE_TIME_PREKEYS = 200;
+/** Default signed capabilities: the whole session suite (audit E-1). */
+export const DEFAULT_PROTOCOLS: readonly string[] = [PQXDH_PROTOCOL, RATCHET_PROTOCOL];
 
 function signPrekey(identity: DeviceIdentitySecrets, kind: SignedPrekey["kind"], id: string, pub: Uint8Array): SignedPrekey {
   const fields = { v: PQXDH_PROTOCOL, kind, id, pub: toB64(pub), userId: identity.userId, deviceId: identity.deviceId };
@@ -154,8 +170,8 @@ export function generatePrekeys(identity: DeviceIdentitySecrets, opts: { oneTime
     store.pqopks[pqId] = toB64(pq.secretKey);
     pqopkPublic.push(signPrekey(identity, "mlkem768-one-time", pqId, pq.publicKey));
   }
-  const protocols = opts.protocols ?? [PQXDH_PROTOCOL];
-  const capabilities = { protocols, signature: signHybrid(`${PQXDH_PROTOCOL}/capabilities`, { protocols, userId: identity.userId, deviceId: identity.deviceId }, signingKeysOf(identity)) };
+  const protocols = opts.protocols ?? [...DEFAULT_PROTOCOLS];
+  const capabilities = signCapabilities(identity, protocols);
   const base = {
     v: PQXDH_PROTOCOL,
     identity: publicIdentity(identity),
@@ -169,6 +185,80 @@ export function generatePrekeys(identity: DeviceIdentitySecrets, opts: { oneTime
     bundle(index?: number): PrekeyBundle {
       return { ...base, ...(index !== undefined && opkPublic[index] ? { opk: opkPublic[index], pqopk: pqopkPublic[index] } : {}) };
     },
+  };
+}
+
+export function signCapabilities(identity: DeviceIdentitySecrets, protocols: string[] = [...DEFAULT_PROTOCOLS]): PrekeyBundle["capabilities"] {
+  return { protocols, signature: signHybrid(`${PQXDH_PROTOCOL}/capabilities`, { protocols, userId: identity.userId, deviceId: identity.deviceId }, signingKeysOf(identity)) };
+}
+
+/** Assembles a bundle from published parts (as the server stores and hands them out). */
+export function buildBundle(parts: { identity: PublicIdentity; capabilities: PrekeyBundle["capabilities"]; spk: SignedPrekey; pqspk: SignedPrekey; opk?: SignedPrekey; pqopk?: SignedPrekey }): PrekeyBundle {
+  return { v: PQXDH_PROTOCOL, identity: parts.identity, capabilities: parts.capabilities, spk: parts.spk, pqspk: parts.pqspk, ...(parts.opk ? { opk: parts.opk } : {}), ...(parts.pqopk ? { pqopk: parts.pqopk } : {}) };
+}
+
+/**
+ * Rotates the signed X25519 and ML-KEM last-resort prekeys (audit E-3). The
+ * previous ones are retired, not deleted, and keep opening initial messages
+ * for graceMs. Returns the NEW store (input untouched) and the public parts to
+ * upload. Expired retired keys (and their replay records) are pruned.
+ */
+export function rotateSignedPrekeys(identity: DeviceIdentitySecrets, input: PrekeyStore, opts: { rand?: RandomSource; now?: Date; graceMs?: number } = {}) {
+  const rand = opts.rand ?? randomBytes;
+  const now = opts.now ?? new Date();
+  const store: PrekeyStore = JSON.parse(JSON.stringify(input));
+  const retired = store.retired ?? { spks: [], pqspks: [] };
+  retired.spks.push({ id: store.spk.id, priv: store.spk.priv, retiredAt: now.toISOString() });
+  retired.pqspks.push({ id: store.pqspk.id, dk: store.pqspk.dk, retiredAt: now.toISOString() });
+  store.retired = retired;
+  const spkPriv = rand(32);
+  const pq = ml_kem768.keygen(rand(64));
+  store.spk = { id: "spk-" + bytesToHex(rand(8)), priv: toB64(spkPriv), createdAt: now.toISOString() };
+  store.pqspk = { id: "pqspk-" + bytesToHex(rand(8)), dk: toB64(pq.secretKey), createdAt: now.toISOString() };
+  return {
+    store: pruneRetiredPrekeys(store, now, opts.graceMs),
+    spk: signPrekey(identity, "x25519-signed", store.spk.id, x25519.getPublicKey(spkPriv)),
+    pqspk: signPrekey(identity, "mlkem768-signed", store.pqspk.id, pq.publicKey),
+  };
+}
+
+/** Drops retired signed prekeys older than graceMs and the replay records bound to them. Pure. */
+export function pruneRetiredPrekeys(input: PrekeyStore, now = new Date(), graceMs = SIGNED_PREKEY_GRACE_MS): PrekeyStore {
+  const store: PrekeyStore = JSON.parse(JSON.stringify(input));
+  if (!store.retired) return store;
+  const alive = (at: string) => now.getTime() - Date.parse(at) < graceMs;
+  store.retired.spks = store.retired.spks.filter((k) => alive(k.retiredAt));
+  store.retired.pqspks = store.retired.pqspks.filter((k) => alive(k.retiredAt));
+  const liveSpks = new Set([store.spk.id, ...store.retired.spks.map((k) => k.id)]);
+  store.seenInitial = store.seenInitial.filter((entry) => liveSpks.has(entry.split("|")[0]));
+  return store;
+}
+
+/** Adds one-time prekeys (replenishment). Returns the NEW store and the signed public keys to upload. */
+export function addOneTimePrekeys(identity: DeviceIdentitySecrets, input: PrekeyStore, count: number, rand: RandomSource = randomBytes) {
+  if (!Number.isSafeInteger(count) || count < 1) throw new PqxdhError("prekey_count");
+  const store: PrekeyStore = JSON.parse(JSON.stringify(input));
+  if (Object.keys(store.opks).length + count > MAX_ONE_TIME_PREKEYS) throw new PqxdhError("prekey_count", "Too many one-time prekeys.");
+  const opks: SignedPrekey[] = [];
+  const pqopks: SignedPrekey[] = [];
+  for (let i = 0; i < count; i++) {
+    const opkPriv = rand(32);
+    const opkId = "opk-" + bytesToHex(rand(8));
+    store.opks[opkId] = toB64(opkPriv);
+    opks.push(signPrekey(identity, "x25519-one-time", opkId, x25519.getPublicKey(opkPriv)));
+    const pq = ml_kem768.keygen(rand(64));
+    const pqId = "pqopk-" + bytesToHex(rand(8));
+    store.pqopks[pqId] = toB64(pq.secretKey);
+    pqopks.push(signPrekey(identity, "mlkem768-one-time", pqId, pq.publicKey));
+  }
+  return { store, opks, pqopks };
+}
+
+/** Public signed prekeys of the CURRENT store (re-publish after a restart). */
+export function publicSignedPrekeys(identity: DeviceIdentitySecrets, store: PrekeyStore) {
+  return {
+    spk: signPrekey(identity, "x25519-signed", store.spk.id, x25519.getPublicKey(fromB64(store.spk.priv))),
+    pqspk: signPrekey(identity, "mlkem768-signed", store.pqspk.id, ml_kem768.getPublicKey(fromB64(store.pqspk.dk))),
   };
 }
 
@@ -276,6 +366,9 @@ export function respond(params: {
   expectedInitiator: PublicIdentity;
   rand?: RandomSource;
   pqEpochInterval?: number;
+  /** When given, retired signed prekeys older than graceMs are pruned first (and refused). */
+  now?: Date;
+  graceMs?: number;
 }): { state: RatchetState; store: PrekeyStore; plaintext: string } {
   const m = params.message;
   if (!m || m.v !== PQXDH_PROTOCOL) throw new PqxdhError("message_version");
@@ -288,9 +381,10 @@ export function respond(params: {
   if (!verifyPublicIdentity(m.initiator)) throw new PqxdhError("identity_binding");
   const { signature, ...unsigned } = m;
   if (!signature || !verifyHybrid(INIT_CONTEXT, unsigned, signature, m.initiator).both) throw new PqxdhError("initiator_signature");
-  const store: PrekeyStore = JSON.parse(JSON.stringify(params.store));
-  if (m.spkId !== store.spk.id) throw new PqxdhError("unknown_spk");
-  const digest = bytesToHex(sha256(canonicalBytes(unsigned)));
+  const store: PrekeyStore = params.now ? pruneRetiredPrekeys(params.store, params.now, params.graceMs) : JSON.parse(JSON.stringify(params.store));
+  const spkEntry = m.spkId === store.spk.id ? store.spk : store.retired?.spks.find((k) => k.id === m.spkId);
+  if (!spkEntry) throw new PqxdhError("unknown_spk", "Signed prekey unknown or expired.");
+  const digest = `${m.spkId}|${bytesToHex(sha256(canonicalBytes(unsigned)))}`;
   const lastResortOnly = !m.opkId && m.pqpkKind === "mlkem768-signed";
   if (lastResortOnly && store.seenInitial.includes(digest)) throw new PqxdhError("replay", "Initial message replayed.");
 
@@ -308,11 +402,12 @@ export function respond(params: {
     dk = fromB64(k);
     delete store.pqopks[m.pqpkId];
   } else {
-    if (m.pqpkId !== store.pqspk.id) throw new PqxdhError("unknown_pqspk");
-    dk = fromB64(store.pqspk.dk);
+    const pqEntry = m.pqpkId === store.pqspk.id ? store.pqspk : store.retired?.pqspks.find((k) => k.id === m.pqpkId);
+    if (!pqEntry) throw new PqxdhError("unknown_pqspk");
+    dk = fromB64(pqEntry.dk);
   }
   const ikB = fromB64(params.self.ikPriv);
-  const spkPriv = fromB64(store.spk.priv);
+  const spkPriv = fromB64(spkEntry.priv);
   const ekA = fromB64(m.ek);
   const dhs = [x25519.getSharedSecret(spkPriv, fromB64(m.initiator.ik)), x25519.getSharedSecret(ikB, ekA), x25519.getSharedSecret(spkPriv, ekA)];
   if (opkPriv) dhs.push(x25519.getSharedSecret(opkPriv, ekA));

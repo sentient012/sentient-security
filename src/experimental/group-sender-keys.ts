@@ -75,8 +75,21 @@ export function newSenderChain(params: { groupId: string; epoch: number; sender:
   return { own, distribution: { v: GROUP_SK_PROTOCOL, groupId: params.groupId, epoch: params.epoch, senderDeviceId: params.sender.deviceId, senderUserId: params.sender.userId, chainKey: ck, iteration: 0 } };
 }
 
-export function acceptDistribution(d: SenderKeyDistribution): SenderChainState {
+/**
+ * Accept a sender's chain for one epoch. `from` is the peer of the
+ * AUTHENTICATED pairwise session the distribution arrived over (its pinned
+ * identity), and `group` what the caller expects (the group and epoch the
+ * server says this hand-off is for). A distribution that claims any other
+ * sender, group or epoch is refused (audit E-5): otherwise a member could
+ * hand out a chain under another member's name, and messages on it would be
+ * attributed to that member wherever the signature check is skipped
+ * (notification previews).
+ */
+export function acceptDistribution(d: SenderKeyDistribution, from: { userId: string; deviceId: string }, group?: { groupId: string; epoch: number }): SenderChainState {
+  if (!from || typeof from.userId !== "string" || typeof from.deviceId !== "string") throw new GroupSenderKeyError("unauthenticated", "A distribution must come with its authenticated session peer.");
   if (!d || d.v !== GROUP_SK_PROTOCOL || fromB64(d.chainKey).length !== 32 || !Number.isSafeInteger(d.iteration) || d.iteration < 0) throw new GroupSenderKeyError("distribution");
+  if (d.senderUserId !== from.userId || d.senderDeviceId !== from.deviceId) throw new GroupSenderKeyError("wrong_sender", "The distribution's sender is not the session peer it came from.");
+  if (group && (d.groupId !== group.groupId || d.epoch !== group.epoch)) throw new GroupSenderKeyError("wrong_chain", "The distribution is for another group or epoch.");
   return { groupId: d.groupId, epoch: d.epoch, senderDeviceId: d.senderDeviceId, senderUserId: d.senderUserId, ck: d.chainKey, iteration: d.iteration, skipped: [] };
 }
 

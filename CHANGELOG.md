@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased (experimental, not in the package)
+## Unreleased
+
+- experimental fixes from the 2026-11-25 audit (not reviewed, still off by default):
+  - E-1 negotiation: default bundles sign both suite ids; either id selects the session suite.
+  - E-2 downgrade: `selectProtocol({ pin })` returns `"blocked"`, never legacy, for an upgraded account; pins are per account; `clearUpgrade` after a user-visible reset.
+  - E-3 prekeys: `rotateSignedPrekeys` with a grace period for retired signed prekeys, `addOneTimePrekeys`, `publicSignedPrekeys`, `buildBundle`, `signCapabilities`.
+  - E-4 device lists: signed `expiresAt`, `stale` verdict, `refreshDeviceList` / `needsRefresh`, fork detection with `deviceListDigest` / `compareGossip`.
+  - E-5 group sender keys: `acceptDistribution(d, from, group)` requires the authenticated session peer.
+  - E-6 ratchet: 4 post-quantum receiving epochs kept (`PQ_RECV_EPOCHS_RETAINED`).
+  - E-8 PQXDH: last-resort replay records bound to, and pruned with, their signed prekey.
+  - Regression tests: `test/experimental-defects.test.mjs`.
+
+## Earlier unreleased (experimental, not in the package)
 
 - src/experimental: sentient-pqxdh-v0, sentient-tr-v0 (Double Ratchet + sparse ML-KEM epoch ratchet), signed device lists, group sender keys, protocol negotiation, QR-bound identity verification; 22 tests; docs/experimental/PROTOCOLS-EXPERIMENTAL.md.
 

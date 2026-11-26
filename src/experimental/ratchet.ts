@@ -66,6 +66,13 @@ export const ML_KEM_CT_BYTES = 1088;
  * message). 1 = propose on every turn.
  */
 export const DEFAULT_PQ_EPOCH_INTERVAL = 20;
+/**
+ * Receiving chains kept: the current epoch and this many earlier ones (audit
+ * E-6: with only one earlier epoch, a message delayed across two transitions
+ * was lost). Larger = more tolerance for long offline gaps, weaker PQ forward
+ * secrecy for those old chains.
+ */
+export const PQ_RECV_EPOCHS_RETAINED = 3;
 
 export type Role = "initiator" | "responder";
 export type RandomSource = (length: number) => Uint8Array;
@@ -75,7 +82,7 @@ type PqState = {
   epoch: number;
   root: string;
   send: Chain;
-  /** Receiving chains for the current and the previous epoch only. */
+  /** Receiving chains for the current epoch and PQ_RECV_EPOCHS_RETAINED earlier ones. */
   recv: Record<string, Chain>;
   /** Proposer side: our pending encapsulation key for `epoch`. */
   proposal: { epoch: number; ek: string; dk: string } | null;
@@ -267,14 +274,14 @@ function advanceEpoch(state: RatchetState, epoch: number, ss: Uint8Array) {
   if (epoch !== state.pq.epoch + 1) throw new RatchetError("pq_epoch_order");
   const root = kdfSckaRk(b(state.pq.root), ss);
   const c = chainsFor(state.role, root);
-  const previous = state.pq.epoch;
+  const oldest = state.pq.epoch - (PQ_RECV_EPOCHS_RETAINED - 1);
   state.pq.epoch = epoch;
   state.pq.root = toB64(root);
   state.pq.send = { ck: toB64(c.send), n: 0 };
   state.pq.recv[String(epoch)] = { ck: toB64(c.recv), n: 0 };
-  // Keep only the current and the previous epoch's receiving chains (forward secrecy).
-  for (const key of Object.keys(state.pq.recv)) if (Number(key) < previous) delete state.pq.recv[key];
-  state.skipped = state.skipped.filter(([scope]) => !scope.startsWith("pq|") || Number(scope.split("|")[1]) >= previous);
+  // Keep only the newest receiving chains (forward secrecy for older epochs).
+  for (const key of Object.keys(state.pq.recv)) if (Number(key) < oldest) delete state.pq.recv[key];
+  state.skipped = state.skipped.filter(([scope]) => !scope.startsWith("pq|") || Number(scope.split("|")[1]) >= oldest);
 }
 
 function processPqHeader(state: RatchetState, header: RatchetHeader, rand: RandomSource) {
@@ -350,7 +357,7 @@ export function decrypt(input: RatchetState, message: RatchetMessage, rand: Rand
   // Post-quantum epoch bookkeeping first (a ciphertext answering our proposal
   // is needed to derive the key of this very message). Nothing is committed
   // unless the AEAD below verifies: `state` is a private copy until returned.
-  if (header.pqEpoch + 1 < state.pq.epoch) throw new RatchetError("pq_epoch_expired", "Message from an expired post-quantum epoch.");
+  if (header.pqEpoch + PQ_RECV_EPOCHS_RETAINED < state.pq.epoch) throw new RatchetError("pq_epoch_expired", "Message from an expired post-quantum epoch.");
   processPqHeader(state, header, rand);
   if (header.pqEpoch > state.pq.epoch) throw new RatchetError("pq_epoch_ahead", "Message from a post-quantum epoch this session never agreed.");
 

@@ -352,13 +352,13 @@ test("group sender keys: delivery, reordering, replay, forgery by another member
   let sender = own;
   const msgs = [];
   for (let i = 0; i < 6; i++) { const out = G.encryptGroup(sender, alice, `g${i}`); sender = out.state; msgs.push(out.message); }
-  let rx = G.acceptDistribution(distribution);
+  let rx = G.acceptDistribution(distribution, { userId: "user-alice", deviceId: "dev-a1" });
   for (const i of [3, 0, 5, 1, 2, 4]) { const out = G.decryptGroup(rx, msgs[i], X.publicIdentity(alice)); rx = out.state; assert.equal(out.plaintext, `g${i}`); }
   assert.throws(() => G.decryptGroup(rx, msgs[2], X.publicIdentity(alice)), /key_used/);
-  const malChain = G.acceptDistribution(distribution); // Mallory, a member, knows Alice's chain key...
+  const malChain = G.acceptDistribution(distribution, { userId: "user-alice", deviceId: "dev-a1" }); // Mallory, a member, knows Alice's chain key...
   const forgedBody = G.encryptGroup({ ...malChain }, { ...mallory, deviceId: "dev-a1", userId: "user-alice" }, "forged");
-  assert.throws(() => G.decryptGroup(G.acceptDistribution(distribution), forgedBody.message, X.publicIdentity(alice)), /signature/, "...but cannot sign as Alice");
-  assert.throws(() => G.decryptGroup(G.acceptDistribution(distribution), { ...msgs[0], epoch: 4 }, X.publicIdentity(alice)), /wrong_chain/);
+  assert.throws(() => G.decryptGroup(G.acceptDistribution(distribution, { userId: "user-alice", deviceId: "dev-a1" }), forgedBody.message, X.publicIdentity(alice)), /signature/, "...but cannot sign as Alice");
+  assert.throws(() => G.decryptGroup(G.acceptDistribution(distribution, { userId: "user-alice", deviceId: "dev-a1" }), { ...msgs[0], epoch: 4 }, X.publicIdentity(alice)), /wrong_chain/);
   // Forward secrecy: the receiver's current chain state cannot recompute delivered messages.
   assert.throws(() => G.decryptGroup(rx, msgs[0], X.publicIdentity(alice)));
 });
